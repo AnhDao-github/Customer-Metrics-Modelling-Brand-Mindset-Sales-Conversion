@@ -5,6 +5,8 @@ To bridge the gap between marketing activity and financial performance, this pro
 
 By analyzing the relationship between marketing variables and customer brand perception, this data reveals a critical strategic misalignment: current advertising efforts are negatively impacting *Brand Liking*, which the model identifies as the sole metric that successfully converts into sales. This project decodes specific customer mindset dynamics (Potential, Stickiness, and Responsiveness) to optimize marketing investments and secure sustainable revenue growth.
 
+**[👉 View the full HTML Data Report here](https://anhdao-github.github.io/Caf-Dulcis-Marketing-Mindset-Sales-Conversion-Analysis/)**
+
 ## 🛠️ Tech Stack & Methodology
 * **Language:** R
 * **Libraries:** `tidyverse`, `tseries`, `vars`, `R6`
