@@ -1,0 +1,197 @@
+---
+title: "20260428-DaoDang-003245480"
+author: "DD"
+date: "2026-04-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(repos=c(CRAN = "https://cloud.r-project.org/"))
+```
+
+## Executive Summary
+
+To bridge the gap between marketing activity and financial performance, Marc must move beyond lagging sales data toward an integrated customer mindset analysis. At Café Dulcis, the relationship between marketing variables and brand perception reveals a significant strategic misalignment. Data suggests that current advertising efforts are counterproductive, as they negatively impact Brand Liking which is the sole mindset metric that successfully converts into sales. Because Liking is already highly saturated, the café’s brand strength is rooted more in its specialty coffee experience than in paid media.
+
+Furthermore, Brand Consideration emerges as the primary growth engine due to its unique combination of high potential and high stickiness, ensuring that consumer interest is both attainable and enduring. Conversely, while Brand Awareness shows significant room for expansion, its low stickiness indicates that it is highly volatile and prone to rapid decay without constant reinforcement. Understanding these specific mindset dynamics is essential for optimizing marketing investment appeal and securing sustainable revenue growth in the Lappeenranta market.
+
+### Load the required libraries
+
+```{r}
+library(tidyverse)
+install.packages("tseries")
+library(tseries)
+install.packages("vars")
+library(vars)
+install.packages("R6")
+library(R6)
+```
+
+### Import the data
+
+```{r}
+data_cafe <-read.csv ("CafeDulcis.csv", header = TRUE, sep = ",")
+head (data_cafe)
+summary (data_cafe)
+```
+
+### Calculate the potential 
+
+```{r}
+# Awareness 
+potential_awareness <- (100 - mean(data_cafe$Awareness)) / 100
+
+# Consideration 
+potential_consideration <- (100 - mean(data_cafe$Consideration)) / 100
+
+# Liking
+data_cafe$Liking_transformed <- data_cafe$Liking / 7
+potential_liking <- (1 - mean(data_cafe$Liking_transformed))
+
+# Create the table
+table_potential <- data.frame(
+  potential = c("awareness", "consideration", "liking"),
+  value = c(potential_awareness, potential_consideration, potential_liking)
+)
+
+# Print the table
+table_potential
+```
+
+**Interpret the findings **
+
+- Brand Awareness (77.6%): Has the highest potential. This means there is massive room for growth, making it our top marketing priority.  
+
+- Brand Consideration (73.5%): Also has strong potential. Efforts to get people to consider the cafe will yield high returns.  
+
+- Brand Liking (25.9%): Has the lowest potential because it is already close to its maximum level. Investing more here will likely result in diminishing returns.
+
+### Calculate stickiness 
+
+```{r}
+#awareness
+ar1 <- ar (data_cafe$Awareness, aic = TRUE) 
+
+#consideration
+ar2 <- ar (data_cafe$Consideration, aic = TRUE) 
+
+#Liking
+ar3 <- ar (data_cafe$Liking, aic = TRUE) 
+
+#Stickiness
+stick_awareness <- ar1$ar[1] + ar1$ar[2] + ar1$ar[3] 
+stick_consideration <- ar2$ar[1] + ar2$ar[2] + ar2$ar[3] 
+stick_liking <- ar3$ar[1] + ar3$ar[2] + ar3$ar[3] 
+
+#table
+table_stickiness <- data.frame (
+  stickiness = c("awareness", "consideration", "liking"),
+  value = c(stick_awareness, stick_consideration, stick_liking)
+)
+table_stickiness
+```
+
+
+**Findings**
+
+- Brand Consideration (76.3%): Has the highest stickiness. Gains here are stable and enduring, don't need to constantly spend money to maintain them.
+
+- Brand Liking (76.0%): Very high stickiness. Once customers like the cafe, that positive attitude remains strong over time.
+
+- Brand Awareness (43.1%): Has the lowest stickiness. If you stop advertising, people will forget about the brand.
+
+
+### Calculate Responsiveness
+
+```{r}
+#calculate responsiveness by lagging a variable
+data_cafe$lag_aware <- lag(data_cafe$Awareness)
+data_cafe$lag_aware[1] <- 0
+
+data_cafe$lag_consideration <- lag(data_cafe$Consideration)
+data_cafe$lag_consideration[1] <- 0
+
+data_cafe$lag_liking <- lag(data_cafe$Liking)
+data_cafe$lag_liking[1] <- 0
+
+data_cafe$lag_sales <- lag(data_cafe$Sales)
+data_cafe$lag_sales[1] <- 0
+
+#logarithmic model
+response_aware <- lm(log(Awareness + 1) ~ log(lag_aware + 1) + log(Price + 1) + log(Promotion + 1) + log(Advertising + 1), data = data_cafe)
+
+response_consideration <- lm(log(Consideration + 1) ~ log(lag_consideration + 1) + log(Price + 1) + log(Promotion + 1) + log(Advertising + 1), data = data_cafe)
+
+response_liking <- lm(log(Liking + 1) ~ log(lag_liking + 1) + log(Price + 1) + log(Promotion + 1) + log(Advertising + 1), data = data_cafe)
+
+response_sales <- lm(log(Sales + 1) ~ log(lag_sales + 1) + log(Price + 1) + log(Promotion + 1) + log(Advertising + 1), data = data_cafe)
+
+#summary
+summary(response_aware)
+summary(response_consideration)
+summary(response_liking)
+summary(response_sales)
+
+#extracting the coefficients to create a table
+table_response_aware <- data.frame(round(response_aware$coefficients, 4))
+table_response_consideration <- data.frame(round(response_consideration$coefficients, 4))
+table_response_liking <- data.frame(round(response_liking$coefficients, 4))
+table_response_sales <- data.frame(round(response_sales$coefficients, 4))
+
+# Combine them all into one clean view
+table_responsiveness_all <- data.frame(
+  Metric = c("Intercept", "Lagged_Metric", "Price", "Promotion", "Advertising"),
+  Awareness = round(response_aware$coefficients, 4),
+  Consideration = round(response_consideration$coefficients, 4),
+  Liking = round(response_liking$coefficients, 4),
+  Sales = round(response_sales$coefficients, 4)
+)
+
+print(table_responsiveness_all)
+```
+
+**Findings**
+
+- Awareness & Consideration: None of marketing variables have a statistically significant short-term impact, all p-values are well above 0.05.
+
+- Brand Liking: Advertising has a negative and statistically significant impact on Liking (coefficient = -0.0526, p = 0.0429). This suggests that current advertising efforts are  slightly harming how much people like the cafe.
+
+- Sales: Direct responsiveness is flat. Neither significantly drives short-term sales volume directly.
+
+### Log transformations
+
+```{r}
+# Calculate Conversion
+conversion_model <- lm(log(Sales + 1) ~ log(lag_sales + 1) + log(Awareness) + log(Consideration) + log(Liking), data = data_cafe)
+
+# View the results
+summary(conversion_model)
+```
+
+## Marketing Strategies
+
+**Stop current Ads**
+
+Current advertising has a negative responsiveness (-0.05) on brand liking. It is actively hurting our brand. In the competitive Lappeenranta specialty coffee market, these campaigns are actively hurting the brand's perception.
+
+=> Action: immediately pause all current ad spend and redesign the creative content to better reflect the premium, high-quality coffee experience.
+
+**Drive Consideration (best ROI)**
+
+Consideration has high growth Potential (73.5%) and high Stickiness (76.3%). Gains made here will be substantial and long-lasting.
+
+=> Action: shift budget to new, compelling trial promotions (first-time discounts, local partnerships, etc.), since current promotions show zero responsiveness.
+
+**Maintain continuous Awareness**
+
+Awareness has the highest Potential (77.6%) but very low Stickiness (43.1%). If we stop marketing, people forget us quickly.
+
+=> Action: Use low-cost, continuous visibility tactics (local SEO, steady social media presence) rather than expensive, short-term ads to keep Café Dulcis top-of-mind.
+
+**Leverage Brand Liking**
+
+Liking is saturated (low Potential: 25.9%). Spending money to increase it will result in diminishing returns.
+
+=> Action: lean into the strengths as a specialty coffee shop and rely on the excellence of the product itself. Implement referral programs to incentivize our already-satisfied customers to act as organic lead generators for the café.
+
